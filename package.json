@@ -7,7 +7,9 @@
   "private": true,
   "scripts": {
     "start": "yarn build && node dist/index.js",
-    "build": "rm -rf ./dist && tsc"
+    "build": "rm -rf /dist && tsc",
+    "startWindows": "yarn buildWindows && node dist/index.js",
+    "buildWindows": "rd /s /q dist && tsc"
   },
   "dependencies": {
     "axios": "^0.21.1",

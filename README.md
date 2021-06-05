@@ -15,8 +15,14 @@ yarn install
 
 ### Build
 
+Unix based systems:
 ```sh
 yarn build
+```
+
+Windows:
+```sh
+yarn buildWindows
 ```
 
 It will generate transpiled js files into the `dist` folder.
@@ -30,8 +36,15 @@ Run the following command providing the arguments.
 3. Ticker of destination token to arbitrate (Required)
 4. Config to show values in a human readable way (Optional)
 
+Unix based systems:
 ```sh
 yarn start <QUANTITY> <FROM_TOKEN> <TO_TOKEN> [<HUMAN_READABLE>]
+yarn start 10 BNB DAI
+```
+
+Windows
+```sh
+yarn startWindows <QUANTITY> <FROM_TOKEN> <TO_TOKEN> [<HUMAN_READABLE>]
 yarn start 10 BNB DAI
 ```
 
