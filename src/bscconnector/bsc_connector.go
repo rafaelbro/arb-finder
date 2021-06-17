@@ -99,7 +99,6 @@ func StartArbitrage(amount *big.Int, routes *[]*big.Int, path []common.Address, 
 	result, err := instance.StartArbitrage(auth, amount, *routes, path)
 	if err != nil {
 		fmt.Println("FALHOU O CONTRATO")
-		fmt.Println(result.Hash())
 		fmt.Println(result)
 		fmt.Println(err)
 	} else {
