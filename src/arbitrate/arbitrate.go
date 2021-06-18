@@ -103,8 +103,6 @@ func checkArbitragePossibility(tokenFrom string, tokenTo string, amount *big.Int
 	} else {
 		callContractChan <- nil
 	}
-	fmt.Printf("payableAmount = %s / toTokenAmount = %s / profit = %s / liquidity = %s \n",
-		payableAmount, toTokenAmount, profit, liquidity)
 }
 
 func routersAndPath(quote *oneinchservice.QuoteResponse) (*[]*big.Int, *[]common.Address, error) {
