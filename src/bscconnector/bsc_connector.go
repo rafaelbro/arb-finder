@@ -7,6 +7,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -98,13 +99,12 @@ func StartArbitrage(amount *big.Int, routes *[]*big.Int, path []common.Address, 
 	auth.GasPrice = big.NewInt(int64(7000000000))
 
 	result, err := instance.StartArbitrage(auth, amount, *routes, path)
+	fmt.Println(time.Now().UTC().String())
 	if err != nil {
 		fmt.Println("FALHOU O CONTRATO")
-		fmt.Println(result)
 		fmt.Println(err)
 	} else {
 		fmt.Println("BOMBOU O CONTRATO")
-		fmt.Println(result.Hash())
 		fmt.Println(result)
 	}
 }

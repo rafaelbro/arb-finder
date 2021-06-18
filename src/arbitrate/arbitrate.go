@@ -60,6 +60,7 @@ func checkArbitragePossibility(tokenFrom string, tokenTo string, amount *big.Int
 	case r := <-reservesChan:
 		reserves = r
 	case <-time.After(3 * time.Second):
+		fmt.Println("GetReserve Timed out")
 		callContractChan <- nil
 		return
 	}
