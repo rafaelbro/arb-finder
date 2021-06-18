@@ -8,53 +8,61 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 )
 
 const ()
 
+type ContractCallEvent struct {
+	Quote  *oneinchservice.QuoteResponse
+	Amount *big.Int
+}
+
 func Arbitrate(token0 string, token0Amount int64, token1 string, token1Amount int64, pool string) int64 {
 	token0AmountBig := util.ConvertToCryptoValue(token0Amount)
 	token1AmountBig := util.ConvertToCryptoValue(token1Amount)
 	reservesChan := make(chan *bscconnector.Reserve, 2)
-	fromToken0Chan := make(chan int64, 1)
-	fromToken1Chan := make(chan int64, 1)
+	callContractChan := make(chan *ContractCallEvent, 2)
 
 	go bscconnector.Reserves(pool, reservesChan)
 
 	// Call check for token0 to token
-	go checkArbitragePossibility(token0, token1, token0AmountBig, reservesChan, 0, fromToken0Chan)
+	go checkArbitragePossibility(token0, token1, token0AmountBig, reservesChan, 0, callContractChan)
 
 	// Call check for token1 to token0
-	go checkArbitragePossibility(token1, token0, token1AmountBig, reservesChan, 1, fromToken1Chan)
+	go checkArbitragePossibility(token1, token0, token1AmountBig, reservesChan, 1, callContractChan)
 
-	fromToken0Block := <-fromToken0Chan
-	fromToken1Block := <-fromToken1Chan
-
-	if fromToken0Block != 0 {
-		return fromToken0Block
-	}
-
-	if fromToken1Block != 0 {
-		return fromToken1Block
-	}
-
-	return 0
+	return int64(CallContract(callContractChan))
 }
 
-func checkArbitragePossibility(tokenFrom string, tokenTo string, amount *big.Int, reservesChan chan *bscconnector.Reserve, fromTokenIndex uint8, responseChan chan int64) {
+func checkArbitragePossibility(tokenFrom string, tokenTo string, amount *big.Int, reservesChan chan *bscconnector.Reserve, fromTokenIndex uint8, callContractChan chan *ContractCallEvent) {
 	quote, err := oneinchservice.Quote(tokenFrom, tokenTo, amount)
 	if err != nil {
 		fmt.Println("1Inch Call Failed - Timed out")
-		responseChan <- int64(0)
+		callContractChan <- nil
 		return
 	}
 
 	fee := big.NewInt(10000 - (25 + 3)) // 0.25 + 0.03 = 0.28% fee
-	toTokenAmount, _ := new(big.Int).SetString(quote.ToTokenAmount, 10)
+	toTokenAmount, valid := new(big.Int).SetString(quote.ToTokenAmount, 10)
+	if !valid {
+		fmt.Println("Fail to convert 1Inch ToTokenAmount")
+		callContractChan <- nil
+		return
+	}
+
 	amountFloat := new(big.Float).SetInt(amount)
-	reserves := <-reservesChan
+
+	var reserves *bscconnector.Reserve
+	select {
+	case r := <-reservesChan:
+		reserves = r
+	case <-time.After(3 * time.Second):
+		callContractChan <- nil
+		return
+	}
 
 	numerator := new(big.Int)
 	denominator := new(big.Int)
@@ -82,27 +90,20 @@ func checkArbitragePossibility(tokenFrom string, tokenTo string, amount *big.Int
 	hasLiquidity := liquidity.Cmp(new(big.Float).SetFloat64(0.01)) == -1
 
 	if hasProfit && hasLiquidity {
-		routes, path, err := routersAndPath(quote)
-		if err != nil {
-			fmt.Printf("DEU PAU NAS ROTAS %s\n", err)
-			responseChan <- int64(0)
-			return
-		}
+		var contractCall ContractCallEvent
+		contractCall.Amount = amount
+		contractCall.Quote = quote
 
-		if os.Getenv("RUN") == "true" {
-			bscconnector.StartArbitrage(amount, routes, *path, util.ContractAddress)
-
-			currentBlock := bscconnector.CurrentBlock()
-			responseChan <- int64(currentBlock)
-			fmt.Printf("CHAMOUUUU StartArbitrage(%s, %s, %s) @ %d\n", amount, routes, path, currentBlock)
-		}
+		callContractChan <- &contractCall
 		fmt.Printf("payableAmount = %s / toTokenAmount = %s / profit = %s / liquidity = %s \n",
 			payableAmount, toTokenAmount, profit, liquidity)
 		fmt.Printf("QUOTE: %s\n\n", quote)
 
 	} else {
-		responseChan <- int64(0)
+		callContractChan <- nil
 	}
+	fmt.Printf("payableAmount = %s / toTokenAmount = %s / profit = %s / liquidity = %s \n",
+		payableAmount, toTokenAmount, profit, liquidity)
 }
 
 func routersAndPath(quote *oneinchservice.QuoteResponse) (*[]*big.Int, *[]common.Address, error) {
@@ -174,4 +175,43 @@ func exchangeForEllipsis(protocol *oneinchservice.OneInchProtocol) (int64, error
 	}
 
 	return 255, errors.New("TOKEN NOT ALLOWED FOR ELLIPSIS")
+}
+
+func CallContract(callContractChan chan *ContractCallEvent) uint64 {
+	var event *ContractCallEvent
+	select {
+	case e := <-callContractChan:
+		event = e
+	case <-time.After(10 * time.Second):
+		fmt.Println("Waiting arbitrage response [0]")
+		return 0
+	}
+
+	if event == nil {
+		select {
+		case e := <-callContractChan:
+			event = e
+		case <-time.After(10 * time.Second):
+			fmt.Println("Waiting arbitrage response [1]")
+			return 0
+		}
+	}
+	if event == nil {
+		return 0
+	}
+
+	routes, path, err := routersAndPath(event.Quote)
+	if err != nil {
+		fmt.Printf("DEU PAU NAS ROTAS %s\n", err)
+		return 0
+	}
+
+	if os.Getenv("RUN") == "true" {
+		bscconnector.StartArbitrage(event.Amount, routes, *path, util.ContractAddress)
+	}
+
+	currentBlock := bscconnector.CurrentBlock()
+	fmt.Printf("CHAMOUUUU StartArbitrage( %s, %s, %s) @ %d\n", event.Amount, routes, path, currentBlock)
+
+	return currentBlock
 }

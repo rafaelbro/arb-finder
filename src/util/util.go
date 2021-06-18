@@ -78,14 +78,14 @@ var Pairs map[string]map[string]string = map[string]map[string]string{
 }
 
 var TradeQuantity map[string]int64 = map[string]int64{
-	"CAKE": 150,
-	"DAI":  5000,
-	"ETH":  2,
+	"CAKE": 500,
+	"DAI":  10000,
+	"ETH":  4,
 	"ADA":  0,
-	"VAI":  5000,
-	"USDT": 5000,
+	"VAI":  10000,
+	"USDT": 10000,
 	"BTCB": 1,
-	"USDC": 5000,
-	"WBNB": 12,
-	"BUSD": 5000,
+	"USDC": 10000,
+	"WBNB": 30,
+	"BUSD": 10000,
 }

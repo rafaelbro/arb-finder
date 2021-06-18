@@ -94,7 +94,8 @@ func StartArbitrage(amount *big.Int, routes *[]*big.Int, path []common.Address, 
 	}
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(int64(0))
-	auth.GasPrice = big.NewInt(int64(6000000000))
+	auth.GasLimit = 1000000
+	auth.GasPrice = big.NewInt(int64(7000000000))
 
 	result, err := instance.StartArbitrage(auth, amount, *routes, path)
 	if err != nil {
